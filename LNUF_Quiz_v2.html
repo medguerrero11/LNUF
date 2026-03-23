@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LNUF — Quiz de Estudio</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f7f7f7; --bg3: #efefef;
+    --border: #e0e0e0; --border2: #c8c8c8;
+    --text: #1a1a1a; --text2: #555; --text3: #999;
+    --ok: #1a6e1a; --ok-bg: #f0faf0; --ok-bd: #2a8a2a;
+    --fail: #b03030; --fail-bg: #fdf0f0; --fail-bd: #c94040;
+    --r: 10px; --rs: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a; --bg2: #242424; --bg3: #2e2e2e;
+      --border: #3a3a3a; --border2: #4a4a4a;
+      --text: #f0f0f0; --text2: #aaa; --text3: #666;
+      --ok: #4caf50; --ok-bg: #1a2e1a; --ok-bd: #3a8a3a;
+      --fail: #ef5350; --fail-bg: #2e1a1a; --fail-bd: #c94040;
+    }
+  }
+  html,body { min-height:100%; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--text); }
+  .layout { display:flex; flex-direction:column; min-height:100vh; }
+  .hdr { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--bg); position:sticky; top:0; z-index:10; gap:12px; flex-wrap:wrap; }
+  .hdr-left h1 { font-size:15px; font-weight:600; }
+  .hdr-left p { font-size:12px; color:var(--text3); margin-top:1px; }
+  .nav { display:flex; gap:4px; }
+  .nb { font-size:13px; padding:6px 14px; border:1px solid var(--border2); border-radius:20px; background:transparent; color:var(--text2); cursor:pointer; }
+  .nb:hover { background:var(--bg2); }
+  .nb.on { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .main { flex:1; padding:20px; max-width:700px; margin:0 auto; width:100%; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:18px; }
+  .stat { background:var(--bg2); border:1px solid var(--border); border-radius:var(--rs); padding:12px 8px; text-align:center; }
+  .stat-n { font-size:24px; font-weight:600; line-height:1; }
+  .stat-l { font-size:11px; color:var(--text3); margin-top:4px; }
+  .controls { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
+  .controls select { flex:1; min-width:180px; font-size:14px; padding:9px 12px; border:1px solid var(--border2); border-radius:var(--rs); background:var(--bg); color:var(--text); }
+  .toggle-wrap { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text2); white-space:nowrap; }
+  .toggle { position:relative; width:38px; height:22px; cursor:pointer; flex-shrink:0; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .slider { position:absolute; inset:0; background:var(--bg3); border-radius:11px; transition:.2s; border:1px solid var(--border2); }
+  .slider:before { content:""; position:absolute; width:16px; height:16px; left:2px; top:2px; background:var(--text3); border-radius:50%; transition:.2s; }
+  .toggle input:checked + .slider { background:var(--text); border-color:var(--text); }
+  .toggle input:checked + .slider:before { transform:translateX(16px); background:var(--bg); }
+  .prog-row { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .prog-bar { flex:1; height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; }
+  .prog-fill { height:100%; background:var(--text2); border-radius:2px; transition:width .3s; }
+  .prog-txt { font-size:12px; color:var(--text3); white-space:nowrap; min-width:44px; text-align:right; }
+  .qcard { background:var(--bg); border:1px solid var(--border); border-radius:var(--r); padding:24px; }
+  .qmeta { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+  .tag { font-size:11px; padding:3px 9px; border:1px solid var(--border); border-radius:20px; color:var(--text3); }
+  .qtxt { font-size:16px; line-height:1.65; font-weight:500; margin-bottom:20px; }
+  .mc-hint { font-size:12px; color:var(--text3); margin-bottom:10px; }
+  .opts { display:flex; flex-direction:column; gap:8px; }
+  .opt { padding:13px 16px; font-size:14px; text-align:left; border:1px solid var(--border2); border-radius:var(--rs); cursor:pointer; background:transparent; color:var(--text); line-height:1.55; transition:background .12s; }
+  .opt:hover:not(:disabled) { background:var(--bg2); }
+  .opt.correct { background:var(--ok-bg); border-color:var(--ok-bd); color:var(--ok); font-weight:500; }
+  .opt.wrong { background:var(--fail-bg); border-color:var(--fail-bd); color:var(--fail); }
+  .opt:disabled { cursor:default; }
+  .feedback { margin-top:12px; padding:12px 14px; border-radius:var(--rs); font-size:13px; line-height:1.6; display:none; }
+  .feedback.show { display:block; }
+  .ok-fb { background:var(--ok-bg); border-left:3px solid var(--ok-bd); color:var(--ok); }
+  .fail-fb { background:var(--fail-bg); border-left:3px solid var(--fail-bd); color:var(--fail); }
+  .next-btn { width:100%; margin-top:12px; padding:13px; font-size:15px; font-weight:500; border:1px solid var(--border2); border-radius:var(--rs); background:var(--bg2); cursor:pointer; color:var(--text); }
+  .next-btn:hover { background:var(--bg3); }
+  .done { text-align:center; padding:3rem 1rem; }
+  .done-icon { font-size:44px; margin-bottom:14px; }
+  .done h3 { font-size:20px; font-weight:600; margin-bottom:8px; }
+  .done p { font-size:14px; color:var(--text2); line-height:1.6; margin-bottom:8px; }
+  .score-big { font-size:48px; font-weight:700; margin:16px 0 4px; }
+  .score-sub { font-size:14px; color:var(--text3); margin-bottom:24px; }
+  .db-row { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--border); }
+  .db-row:last-child { border:none; }
+  .db-name { font-size:13px; flex:1; }
+  .db-bar { width:90px; height:5px; background:var(--bg3); border-radius:3px; overflow:hidden; flex-shrink:0; }
+  .db-fill { height:100%; background:var(--text2); border-radius:3px; }
+  .db-pct { font-size:12px; color:var(--text2); min-width:32px; text-align:right; }
+  .db-cnt { font-size:11px; color:var(--text3); min-width:42px; text-align:right; }
+  .db-reset { margin-top:20px; padding:10px 20px; font-size:13px; border:1px solid var(--fail-bd); border-radius:var(--rs); background:transparent; cursor:pointer; color:var(--fail); }
+  .db-reset:hover { background:var(--fail-bg); }
+  .empty { text-align:center; padding:3rem; color:var(--text3); font-size:14px; }
+  @media(max-width:480px) {
+    .main { padding:14px; } .qcard { padding:18px; } .qtxt { font-size:15px; }
+    .stats { gap:6px; } .stat-n { font-size:20px; } .controls { flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="hdr">
+    <div class="hdr-left">
+      <h1>LNUF — Opción múltiple</h1>
+      <p>Ley Nacional sobre el Uso de la Fuerza · DOF 24-01-2024</p>
+    </div>
+    <div class="nav">
+      <button class="nb on" id="btn-q" onclick="setView('q')">Estudiar</button>
+      <button class="nb" id="btn-d" onclick="setView('d')">Progreso</button>
+    </div>
+  </div>
+  <div class="main">
+    <div id="vq">
+      <div class="stats">
+        <div class="stat"><div class="stat-n" id="s-tot">0</div><div class="stat-l">Total</div></div>
+        <div class="stat"><div class="stat-n" id="s-ok">0</div><div class="stat-l">Correctas</div></div>
+        <div class="stat"><div class="stat-n" id="s-fail">0</div><div class="stat-l">Incorrectas</div></div>
+        <div class="stat"><div class="stat-n" id="s-str">0</div><div class="stat-l">Racha</div></div>
+      </div>
+      <div class="controls">
+        <select id="ch-sel" onchange="restart()">
+          <option value="all">Todos los capítulos</option>
+          <option value="0">Cap. I — Disposiciones generales</option>
+          <option value="1">Cap. II — Principios</option>
+          <option value="2">Cap. III — Procedimientos</option>
+          <option value="3">Cap. IV — Instrumentos</option>
+          <option value="4">Cap. V — Agentes</option>
+          <option value="5">Cap. VI — Detenciones</option>
+          <option value="6">Cap. VII — Manifestaciones</option>
+          <option value="7">Cap. VIII — Planeación de operativos</option>
+          <option value="8">Cap. IX — Informes</option>
+          <option value="9">Cap. X — Capacitación</option>
+          <option value="10">Cap. XI — Responsabilidades</option>
+        </select>
+        <div class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="shuffle-tog" onchange="restart()"><span class="slider"></span></label>
+          Aleatorio
+        </div>
+      </div>
+      <div class="prog-row">
+        <div class="prog-bar"><div class="prog-fill" id="pfill" style="width:0%"></div></div>
+        <span class="prog-txt" id="ptxt">0 / 0</span>
+      </div>
+      <div id="card-area"></div>
+    </div>
+    <div id="vd" style="display:none">
+      <div id="db-content"></div>
+      <button class="db-reset" onclick="resetAll()">Borrar todo el progreso</button>
+    </div>
+  </div>
+</div>
+<script>
+const QQ = [
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Son de orden público, de interés social y de observancia general en todo el territorio nacional?",a:"Las disposiciones de la ley nacional sobre el uso de la fuerza",d:["Los principios del uso de la fuerza establecidos en el artículo 4","Los protocolos de actuación de las instituciones de seguridad","Las normas del Reglamento de la Ley Federal de Armas de Fuego"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Tienen como fin regular el uso de la fuerza que ejercen las instituciones de seguridad pública del Estado, así como de la Fuerza Armada permanente cuando actúe en tareas de seguridad pública?",a:"Las disposiciones de la ley nacional sobre el uso de la fuerza",d:["Los protocolos emitidos por el Consejo del Sistema Nacional de Seguridad Pública","Los reglamentos internos de las instituciones de seguridad","Las normas generales del uso de la fuerza del artículo 2"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, cuándo se realicen tareas de protección civil, y se requiera el uso de la fuerza, ¿Quienes lo harán en los términos que dispone la ley nacional del uso de la fuerza?",a:"Las autoridades (Instituciones de seguridad pública del Estado, así como de la Fuerza Armada permanente)",d:["Los agentes de las instituciones de seguridad privada que colaboren en tareas de seguridad pública","Los mandos operativos responsables del operativo de protección civil","Los sujetos obligados y sus instituciones auxiliares"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, Cuando las autoridades (Instituciones de seguridad pública del Estado, así como de la Fuerza Armada permanente), realicen tareas de protección civil, y se requiera el uso de la fuerza ¿En que términos lo harán?",a:"En los términos que dispone la ley nacional del uso de la fuerza",d:["En los términos que dispone la Ley General de Protección Civil","En los términos que establezca el mando operativo responsable del evento","En los términos del Reglamento de la Ley Federal de Armas de Fuego y Explosivos"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es el servidor público integrante de las instituciones de seguridad que, con motivo de su empleo, cargo o comisión, hace uso de la fuerza?",a:"Agente",d:["Sujeto obligado","Integrante de la Fuerza Armada permanente","Elemento de seguridad pública"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cómo se considerará al elemento de la Fuerza Armada permanente cuando actúe en tareas de seguridad pública?",a:"Agente",d:["Sujeto obligado","Integrante de las instituciones de seguridad","Personal de seguridad auxiliar"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cómo se considerará a las personas que presten servicios de seguridad privada en términos de la ley, cuando colaboren en tareas de seguridad pública?",a:"Agente",d:["Sujeto obligado auxiliar","Personal de apoyo de seguridad pública","Integrante temporal de las instituciones de seguridad"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Son las autorizadas para el uso de los miembros de las instituciones de seguridad, de conformidad con la Ley Federal de Armas de Fuego y Explosivos y su Reglamento?",a:"Armas de fuego",d:["Armas menos letales","Armas letales","Armas incapacitantes"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Son aquellas a través de las cuales se disminuyen las funciones corporales de un individuo, reduciendo al mínimo el riesgo de causarle lesiones que pongan en peligro su vida?",a:"Armas menos letales",d:["Armas de fuego","Armas letales","Armas incapacitantes de control"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Son las que por su diseño y mecanismo ocasionan o pueden ocasionar lesiones graves y la muerte?",a:"Armas letales",d:["Armas de fuego","Armas menos letales","Armas de alto poder"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es la acción que ejercen los integrantes de las instituciones de seguridad sobre una o varias personas para su contención?",a:"Control",d:["Detención","Sujeción","Restricción de desplazamiento"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quienes ejercen la acción sobre una o varias personas para su contención?",a:"Los integrantes de las instituciones de seguridad",d:["Los agentes y los sujetos obligados","Los mandos operativos de los operativos","Los miembros de la Fuerza Armada permanente exclusivamente"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es la restricción de la libertad de una persona por las instituciones de seguridad, con el fin de ponerla a disposición de la autoridad competente?",a:"Detención",d:["Control","Aseguramiento","Inmovilización"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que son las instituciones policiales, de procuración de justicia, del sistema penitenciario y dependencias o entidades encargadas de la seguridad pública de orden federal, local o municipal?",a:"Instituciones de seguridad pública",d:["Instituciones de seguridad","Sujetos obligados","Dependencias de seguridad del Estado"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Como también podrán ser referidas, en la ley, las instituciones policiales, de procuración de justicia, del sistema penitenciario y dependencias o entidades encargadas de la seguridad pública de orden federal, local o municipal?",a:"Instituciones de seguridad",d:["Instituciones de seguridad pública","Sujetos obligados","Dependencias de seguridad nacional"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Son las partes anatómicas del cuerpo, tales como los órganos, las extremidades y sus componentes?",a:"Estructuras corporales",d:["Funciones corporales","Sistemas corporales","Capacidades físicas de una persona"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Son las funciones fisiológicas de los sistemas corporales tales como el sistema respiratorio, el sistema cardiovascular, el sistema músculo esquelético?",a:"Funciones corporales",d:["Estructuras corporales","Capacidades físicas de una persona","Sistemas anatómicos del cuerpo"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es el daño producido por una causa externa que deja huella material en el cuerpo humano?",a:"Lesión",d:["Lesión grave","Daño corporal permanente","Afectación a la integridad física"]},
+  {c:0,q:"Es el daño producido por una causa externa que ponga en peligro la vida o que disminuya de manera permanente las capacidades físicas de una persona",a:"Lesión grave",d:["Lesión","Incapacitación","Daño corporal irreversible"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que son las instituciones de seguridad pública, las auxiliares, y los agentes de ambas?",a:"Sujetos obligados",d:["Instituciones de seguridad","Los agentes","Instituciones de seguridad pública"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es la inhibición por medios mecánicos o biomecánicos, de forma momentánea o permanente, de una o más funciones corporales que lleva a cabo una persona autorizada por el Estado sobre otra, siguiendo los procedimientos y protocolos que establecen las normas jurídicas aplicables?",a:"Uso de la fuerza",d:["Control","Detención","Inmovilización"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Su finalidad es salvaguardar la vida, las libertades, la integridad y el patrimonio de las persona?",a:"Uso de la fuerza",d:["La detención","El control","Los protocolos y procedimientos del uso de la fuerza"]},
+  {c:0,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Su finalidad es contribuir a la generación, preservación o restablecimiento del orden público, seguridad y paz social?",a:"Uso de la fuerza",d:["La detención","Los principios del uso de la fuerza","Los mecanismos de reacción"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cuáles son los principios del uso de la fuerza?",a:"Absoluta necesidad\nLegalidad\nPrevención\nProporcionalidad\nRendición de cuentas y vigilancia\nRacionalidad\nOportunidad",d:["Absoluta necesidad, Legalidad, Prevención, Proporcionalidad, Rendición de cuentas y vigilancia, Eficiencia, Oportunidad","Absoluta necesidad, Legalidad, Prevención, Razonabilidad, Rendición de cuentas y vigilancia, Racionalidad, Oportunidad","Necesidad, Legalidad, Prevención, Proporcionalidad, Rendición de cuentas y vigilancia, Racionalidad, Oportunidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere a que el uso de la fuerza sea la última alternativa para tutelar la vida e integridad de las personas?",a:"Absoluta necesidad",d:["Proporcionalidad","Oportunidad","Racionalidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere que el uso de la fuerza sea la última alternativa para evitar que se vulneren bienes jurídicamente protegidos o con el fin de mantener el orden y la paz pública, al haberse agotado otros medios para el desistimiento de la conducta del agresor?",a:"Absoluta necesidad",d:["Proporcionalidad","Racionalidad","Prevención"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere a que la acción de las instituciones de seguridad se realice con estricto apego a la Constitución, a las leyes y a los Tratados Internacionales de los que el Estado mexicano sea parte?",a:"Legalidad",d:["Absoluta necesidad","Rendición de cuentas y vigilancia","Racionalidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere a que en los operativos para el cumplimiento de la ley, cuando el uso de la fuerza sea inevitable, se lleven a cabo reduciendo al mínimo los daños que de ello puedan resultar?",a:"Prevención",d:["Proporcionalidad","Absoluta necesidad","Oportunidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere a que en los operativos para el cumplimiento de la ley sean planificados y se lleven a cabo, en la medida de lo posible, minimizando el uso de la fuerza?",a:"Prevención",d:["Oportunidad","Racionalidad","Absoluta necesidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere a que el nivel de fuerza utilizado sea acorde con el nivel de resistencia ofrecido por el agresor y el nivel de riesgo exhibido, de tal forma que los agentes apliquen medios y métodos bajo un criterio de uso diferenciado y progresivo de la fuerza?",a:"Proporcionalidad",d:["Racionalidad","Oportunidad","Absoluta necesidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este término se refiere a que existan controles que permitan la evaluación de las acciones de uso de la fuerza y sea valorada su eficacia en términos del desempeño de las responsabilidades y funciones previstas por esta Ley?",a:"Rendición de cuentas y vigilancia",d:["Racionalidad","Legalidad","Oportunidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere a la decisión en la que se valora el objetivo que se persigue, las circunstancias de la agresión, las características personales y las capacidades tanto del sujeto a controlar como del integrante de las fuerzas de seguridad?",a:"Racionalidad",d:["Proporcionalidad","Oportunidad","Absoluta necesidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio implica que, dada la existencia del acto o intención hostil, es necesario la aplicación del uso de la fuerza?",a:"Racionalidad",d:["Absoluta necesidad","Proporcionalidad","Prevención"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio se refiere a que cuando se requiera hacer uso de la fuerza, se debe evitar todo tipo de actuación innecesaria cuando exista evidente peligro o riesgo de la vida de las personas ajenas a los hechos?",a:"Oportunidad",d:["Prevención","Racionalidad","Proporcionalidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Este principio significa que debe procurarse en el momento y en el lugar en que se reduzcan al máximo los daños y afectaciones tanto a la vida como a la integridad de las personas involucradas y sus bienes y en general, la afectación de los derechos de las personas?",a:"Oportunidad",d:["Prevención","Absoluta necesidad","Proporcionalidad"]},
+  {c:1,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que se hará en todo momento con pleno respeto a los derechos humanos?",a:"El uso de la fuerza",d:["La detención de personas","Los operativos de seguridad pública","Los mecanismos de reacción de los agentes"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Como será graduado el impacto del uso de la fuerza?",a:"Persuasión\nRestricción del desplazamiento\nSujeción\nInmovilización\nIncapacitación\nLesión grave\nMuerte",d:["Persuasión, Restricción del desplazamiento, Sujeción, Inmovilización, Incapacitación, Fuerza letal, Muerte","Presencia de autoridad, Persuasión, Sujeción, Inmovilización, Incapacitación, Lesión grave, Muerte","Persuasión, Restricción del desplazamiento, Control, Inmovilización, Incapacitación, Lesión grave, Muerte"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere al cese de la resistencia a través del uso de indicaciones verbales o de la simple presencia de la autoridad?",a:"Persuasión",d:["Disuasión o persuasión verbal","Presencia de la autoridad","Controles cooperativos"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se realiza para lograr la cooperación de las personas con la autoridad?",a:"Persuasión",d:["Presencia de la autoridad","Disuasión o persuasión verbal","Restricción del desplazamiento"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a determinar un perímetro con la finalidad de controlar la agresión?",a:"Restricción del desplazamiento",d:["Inmovilización","Control mediante contacto","Sujeción"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a utilizar la fuerza física con moderación para lograr el control o aseguramiento de los individuos?",a:"Sujeción",d:["Inmovilización","Restricción del desplazamiento","Control mediante contacto"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a utilizar la fuerza física con intensidad, pudiendo emplear medios o equipos destinados a restringir la movilidad de las personas para lograr su aseguramiento?",a:"Inmovilización",d:["Sujeción","Incapacitación","Técnicas de sometimiento o control corporal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a utilizar la fuerza física con máxima intensidad permitiendo el empleo de armas menos letales, así como sustancias químicas irritantes que perturben las funciones sensoriales?",a:"Incapacitación",d:["Lesión grave","Inmovilización","Muerte"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a utilizar la fuerza física con máxima intensidad, con la finalidad de neutralizar la resistencia y la violencia, teniendo alta probabilidad de causar lesiones que no pongan en riesgo la vida del agresor?",a:"Incapacitación",d:["Lesión grave","Sujeción","Inmovilización"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a utilizar la fuerza, con la finalidad de neutralizar a los agresores y proteger la integridad de la autoridad o de personas ajenas, con alta probabilidad de dañar gravemente al agresor?",a:"Lesión grave",d:["Incapacitación","Muerte","Inmovilización"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a utilizar la fuerza, permitiendo el uso de armas menos letales o de fuego?",a:"Lesión grave",d:["Incapacitación","Muerte","Fuerza letal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a utilizar la fuerza letal como una acción excepcional, permitiendo el uso de armas menos letales o de fuego?",a:"Muerte",d:["Lesión grave","Incapacitación","Fuerza letal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a Utilizar la fuerza letal como una acción excepcional con la finalidad de repeler y neutralizar la agresión, no teniendo otra opción para proteger la vida de las personas ajenas o la propia, a sabiendas que existe un alto riesgo de causar la muerte del agresor?",a:"Muerte",d:["Lesión grave","Fuerza letal como último recurso","Incapacitación extrema"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que es la acción de apuntar con el cañón de un arma de fuego o una réplica de la misma en dirección a una persona?",a:"Amenaza letal inminente",d:["Resistencia de alta peligrosidad","Acto de agresión real e inminente","Uso de fuerza letal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que es La acción de no soltar un arma de fuego o una réplica de la misma después de advertencia clara?",a:"Amenaza letal inminente",d:["Resistencia activa","Resistencia de alta peligrosidad","Acción que justifica el uso de fuerza letal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que es la acción de poner en riesgo la integridad física de una persona con un arma punzocortante?",a:"Amenaza letal inminente",d:["Resistencia de alta peligrosidad","Resistencia activa","Lesión grave"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que es el accionar el disparador de un arma de fuego?",a:"Amenaza letal inminente",d:["Uso de la fuerza letal","Resistencia de alta peligrosidad","Acto hostil con arma de fuego"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que es la acción de portar o manipular un explosivo real o una réplica del mismo?",a:"Amenaza letal inminente",d:["Resistencia de alta peligrosidad","Uso de fuerza letal","Acto de alto riesgo para la seguridad pública"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que son las acciones tendientes a perturbar objetos o sistemas que puedan tener efectos letales o incapacitantes en una o más personas?",a:"Amenaza letal inminente",d:["Resistencia de alta peligrosidad","Acto hostil de alta peligrosidad","Resistencia activa con armas"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Deberán atender a la perspectiva de género, la protección de niñas, niños y adolescentes?",a:"Los protocolos y procedimientos del uso de la fuerza",d:["Los principios del uso de la fuerza","Los manuales de técnicas para el uso de la fuerza","Los mecanismos de reacción en el uso de la fuerza"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Deberán atender a situaciones de riesgo en el interior o en las inmediaciones de guarderías, escuelas, hospitales, templos, centros de reclusión y otros lugares en el que se congreguen personas ajenas a los agresores?",a:"Los protocolos y procedimientos del uso de la fuerza",d:["Los principios del uso de la fuerza","Los niveles del uso de la fuerza","Los planes operativos y logísticos"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cuáles son los mecanismos de reacción en el uso de la fuerza?",a:"Controles cooperativos\nControl mediante contacto\nTécnicas de sometimiento o control corporal\nTácticas defensivas\nFuerza letal",d:["Presencia de autoridad, Control mediante contacto, Técnicas de sometimiento o control corporal, Tácticas defensivas, Fuerza letal","Controles cooperativos, Control mediante contacto, Técnicas de sometimiento, Tácticas defensivas, Armas de fuego","Controles cooperativos, Contacto físico, Técnicas de sometimiento o control corporal, Tácticas defensivas, Fuerza letal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere a Indicaciones verbales, advertencias o señalización?",a:"Controles cooperativos",d:["Persuasión","Disuasión o persuasión verbal","Presencia de la autoridad"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Su límite superior es la intervención momentánea en funciones motrices?",a:"Control mediante contacto",d:["Técnicas de sometimiento o control corporal","Controles cooperativos","Tácticas defensivas"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Su límite superior es el impedimento momentáneo de funciones corporales y daños menores en estructuras corporales?",a:"Técnicas de sometimiento o control corporal",d:["Control mediante contacto","Tácticas defensivas","Inmovilización"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Su límite superior es el daño de estructuras corporales no vitales?",a:"Tácticas defensivas",d:["Técnicas de sometimiento o control corporal","Incapacitación","Fuerza letal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Su límite es el cese total de funciones corporales?",a:"Fuerza letal",d:["Muerte","Incapacitación","Tácticas defensivas"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cuándo se presume el uso de la fuerza letal?",a:"Cuando se emplee arma de fuego contra una persona",d:["Cuando se cause la muerte del agresor","Cuando se utilicen explosivos en el operativo","Cuando se aplique el nivel de muerte del artículo 6"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Conducta de acción u omisión que realiza una o varias personas, exenta de violencia, para negarse a obedecer órdenes legítimas comunicadas de manera directa por los sujetos obligados, quienes previamente se han identificado como autoridad?",a:"Resistencia pasiva",d:["Resistencia activa","Resistencia de alta peligrosidad","Conducta de omisión no violenta"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Contra esta resistencia podrán oponerse los mecanismos de reacción: controles cooperativos y control mediante contacto?",a:"Resistencia pasiva",d:["Resistencia activa","Resistencia de alta peligrosidad","Conducta de omisión exenta de violencia"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Conducta de acción u omisión que realiza una o varias personas, empleando la violencia, el amago o la amenaza, para negarse a obedecer órdenes legítimas comunicadas de manera directa por los sujetos obligados, quienes previamente se han identificado como autoridad?",a:"Resistencia activa",d:["Resistencia pasiva","Resistencia de alta peligrosidad","Conducta de acción con violencia o amenaza"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Contra esta resistencia podrán oponerse los mecanismos de reacción: controles cooperativos, control mediante contacto, técnicas de sometimiento o control corporal y tácticas defensivas?",a:"Resistencia activa",d:["Resistencia pasiva","Resistencia de alta peligrosidad","Conducta con violencia o amago"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Conducta de acción u omisión que realiza una o varias personas, empleando la violencia, el amago o la amenaza con armas o sin ellas para causar a otra u otras o a miembros de las instituciones de seguridad, lesiones graves o la muerte, negándose a obedecer órdenes legítimas comunicadas de manera directa por los sujetos obligados, quienes previamente se han identificado como autoridad?",a:"Resistencia de alta peligrosidad",d:["Resistencia activa","Amenaza letal inminente","Conducta de alta violencia con armas"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Contra esta resistencia podrán oponerse los mecanismos de reacción: controles cooperativos, control mediante contacto, técnicas de sometimiento o control corporal, tácticas defensivas y fuerza letal?",a:"Resistencia de alta peligrosidad",d:["Resistencia activa","Amenaza letal inminente","Resistencia que ponga en riesgo la vida"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes comunicarán órdenes legítimas de manera directa a una o varias personas, que realizan conductas de acción u omisión que ameritan el uso de la fuerza?",a:"Sujetos obligados",d:["Los agentes","Las instituciones de seguridad","Los mandos operativos"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cuáles son los niveles del uso de la fuerza?",a:"Presencia de la autoridad\nDisuasión o persuasión verbal\nReducción física de movimientos\nUtilización de armas incapacitantes menos letales\nUtilización de armas de fuego o fuerza letal",d:["Presencia de la autoridad, Persuasión, Reducción física de movimientos, Utilización de armas incapacitantes menos letales, Utilización de armas de fuego o fuerza letal","Presencia de la autoridad, Disuasión o persuasión verbal, Reducción física de movimientos, Utilización de armas menos letales, Utilización de armas de fuego o fuerza letal","Presencia de la autoridad, Disuasión o persuasión verbal, Sujeción, Utilización de armas incapacitantes menos letales, Utilización de armas de fuego o fuerza letal"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es la primera forma de contacto que tienen los agentes con la ciudadanía en general?",a:"Presencia de la autoridad",d:["Disuasión o persuasión verbal","Controles cooperativos","Persuasión"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se manifiesta a través del uso adecuado del uniforme; el uso adecuado de equipo, acorde a las circunstancias, y una actitud diligente?",a:"Presencia de la autoridad",d:["Disuasión o persuasión verbal","Controles cooperativos","Persuasión"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere al uso de palabras o gesticulaciones que sean catalogadas como órdenes y que permitan a la persona facilitar a los agentes a cumplir con sus funciones?",a:"Disuasión o persuasión verbal",d:["Persuasión","Controles cooperativos","Presencia de la autoridad"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Mediante acciones cuerpo a cuerpo a efecto de que se controle a la persona que se ha resistido y ha obstaculizado que los agentes cumplan con sus funciones?",a:"Reducción física de movimientos",d:["Técnicas de sometimiento o control corporal","Sujeción","Inmovilización"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Tiene como fin someter la resistencia activa de una persona?",a:"Utilización de armas incapacitantes menos letales",d:["Utilización de armas de fuego o fuerza letal","Reducción física de movimientos","Incapacitación"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Se refiere repeler las resistencias de alta peligrosidad?",a:"Utilización de armas de fuego o fuerza letal",d:["Utilización de armas incapacitantes menos letales","Fuerza letal","Muerte"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿El uso de la fuerza solo se justifica cuando la resistencia o agresión es?",a:"Real, actual e inminente",d:["Real, directa e inminente","Actual, directa y comprobada","Verificada, actual e inminente"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es cuando la agresión se materializa en hechos apreciables por los sentidos, sin ser hipotética ni imaginaria?",a:"Real",d:["Actual","Inminente","Verificada"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es cuando la agresión se presenta en el momento del hecho, no con anterioridad o posterioridad?",a:"Actual",d:["Real","Inminente","Presente"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es cuando la agresión está próxima a ocurrir y, de no realizarse una acción, esta se consumaría?",a:"Inminente",d:["Actual","Real","Potencial"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que será el último recurso en cualquier operativo?",a:"El uso de la fuerza letal",d:["La fuerza letal como nivel del artículo 6","El uso de armas de fuego o explosivos","La muerte como nivel de impacto"]},
+  {c:2,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes harán uso de la fuerza letal como último recurso en cualquier operativo, debiendo comprobar que la agresión era real, actual o inminente, sin derecho, que ponía o podría poner en peligro la vida o integridad física de personas ajenas o de uno de ellos?",a:"Los agentes",d:["Los mandos de los operativos","Los sujetos obligados","Las instituciones de seguridad"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes asignarán las armas solamente al agente que apruebe la capacitación establecida?",a:"Las instituciones de seguridad",d:["Los mandos de las instituciones de seguridad","Los superiores jerárquicos inmediatos","El mando operativo"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién solo podrá usar las armas que le hayan sido asignadas?",a:"El agente que apruebe la capacitación establecida",d:["Todo agente de las instituciones de seguridad","El agente autorizado por el mando operativo","El agente que cuente con la experiencia necesaria"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es una de las armas incapacitantes menos letales que los agentes podrán tener a su cargo y portar?",a:"Bastón PR-24, tolete o su equivalente",d:["Esposas o candados de mano","Dispositivos que generan descargas eléctricas","Mangueras de agua a presión"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es una de las armas incapacitantes menos letales que los agentes podrán tener a su cargo y portar?",a:"Dispositivos que generan descargas eléctricas",d:["Bastón PR-24, tolete o su equivalente","Sustancias irritantes en aerosol","Esposas o candados de mano"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es una de las armas incapacitantes menos letales que los agentes podrán tener a su cargo y portar?",a:"Esposas o candados de mano",d:["Dispositivos que generan descargas eléctricas","Bastón PR-24, tolete o su equivalente","Mangueras de agua a presión"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es una de las armas incapacitantes menos letales que los agentes podrán tener a su cargo y portar",a:"Sustancias irritantes en aerosol",d:["Esposas o candados de mano","Mangueras de agua a presión","Dispositivos que generan descargas eléctricas"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es una de las armas incapacitantes menos letales que los agentes podrán tener a su cargo y portar?",a:"Mangueras de agua a presión",d:["Sustancias irritantes en aerosol","Esposas o candados de mano","Bastón PR-24, tolete o su equivalente"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es una de las armas letales que los agentes podrán tener a su cargo y portar?",a:"Armas de fuego permitidas",d:["Explosivos permitidos","Dispositivos de alta potencia","Armas de fuego y explosivos de uso policial"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Es una de las armas letales que los agentes podrán tener a su cargo y portar?",a:"Explosivos permitidos",d:["Armas de fuego permitidas","Artefactos de alto poder","Granadas de impacto"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quienes deberán dotar a los agentes con el equipo de protección y vehículos con y sin blindaje, a fin de proteger su integridad y disminuir la necesidad del uso de armas de cualquier tipo?",a:"Las instituciones de seguridad",d:["Los mandos de las instituciones de seguridad","El Estado a través de la Secretaría de Hacienda","Los superiores jerárquicos de los agentes"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿De que deberán dotar las instituciones de seguridad a los agentes, a fin de proteger su integridad y disminuir la necesidad del uso de armas de cualquier tipo?",a:"De equipo de protección y vehículos con y sin blindaje",d:["De equipo de protección y armamento necesario para el operativo","De vehículos blindados y armamento de defensa personal","De equipo de protección personal y armas menos letales"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿A que deberán apegarse las armas que se autoricen para los cuerpos de policía?",a:"A lo establecido en el párrafo tercero del artículo 24 de la Ley Federal de Armas de Fuego y Explosivos",d:["A lo establecido en el artículo 15 de la Ley Nacional sobre el Uso de la Fuerza","A los catálogos autorizados por la Secretaría de la Defensa Nacional","A los protocolos de armamento del Consejo del Sistema Nacional de Seguridad Pública"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién emitirá los protocolos de actuación con perspectiva de género y para niñas, niños, adolescentes y protección de los derechos humanos?",a:"Las instituciones de seguridad",d:["El Consejo del Sistema Nacional de Seguridad Pública","Los mandos de las instituciones de seguridad","La Comisión Nacional de los Derechos Humanos"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién emitirá la descripción de las conductas a realizar por parte de los agentes?",a:"Las instituciones de seguridad",d:["El manual correspondiente","Los mandos de las instituciones de seguridad","El Consejo del Sistema Nacional de Seguridad Pública"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién emitirá los manuales de técnicas para el uso de la fuerza?",a:"Las instituciones de seguridad",d:["El manual correspondiente","El Consejo del Sistema Nacional de Seguridad Pública","Los mandos de las instituciones de seguridad"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién determinará el contenido de las prácticas que los agentes deberán cumplir para estar capacitados en el uso de la fuerza?",a:"El manual correspondiente",d:["Las instituciones de seguridad","Los mandos de las instituciones de seguridad","El Consejo del Sistema Nacional de Seguridad Pública"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién determinará la periodicidad del entrenamiento para el uso de las armas permitidas y las técnicas de solución pacífica de conflictos?",a:"El manual correspondiente",d:["Las instituciones de seguridad","Los mandos de las instituciones de seguridad","El superior jerárquico de los agentes"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Son técnicas de solución pacífica de conflictos?",a:"La negociación y la mediación Control de multitudes",d:["La negociación, la mediación y la disuasión verbal","La negociación y el diálogo con líderes comunitarios","La mediación y el manejo de crisis con manifestantes"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién determinará otros medios lícitos que limiten al máximo el uso de la fuerza en los niveles de uso de armas incapacitantes menos letales y de armas de fuego?",a:"El manual correspondiente",d:["Las instituciones de seguridad","Los mandos operativos","El Consejo del Sistema Nacional de Seguridad Pública"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Comprenderá técnicas de solución pacífica de conflictos, como la negociación y la mediación, así como de control de multitudes?",a:"El entrenamiento para el uso de las armas permitidas",d:["El manual correspondiente","Los programas de capacitación de las instituciones","Los protocolos de actuación de las instituciones de seguridad"]},
+  {c:3,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Comprenderá otros medios lícitos que limiten al máximo el uso de la fuerza en los niveles de uso de armas menos letales y uso de arma de fuego?",a:"El entrenamiento para el uso de las armas permitidas",d:["El manual correspondiente","Los protocolos de actuación","Los programas de capacitación"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quienes deberán contar con una base de datos que contenga el registro detallado de: las huellas y las características que impriman los proyectiles u ojivas, las estrías o rayado helicoidal de las armas de fuego bajo su resguardo así como de las armas y equipo asignado a cada agente?",a:"Las instituciones de seguridad",d:["Los mandos de las instituciones de seguridad","El Registro Nacional de Armamento","Los superiores jerárquicos de los agentes"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que deberán contener las bases de datos de las instituciones de seguridad?",a:"El registro detallado de: Las huellas y las características que impriman los proyectiles u ojivas\nLas estrías o rayado helicoidal de las armas de fuego bajo su resguardo\nLas armas y equipo asignado a cada agente",d:["El registro de los agentes, sus armas asignadas y los operativos realizados","Las huellas balísticas, el registro de disparos y las armas asignadas a cada agente","El registro de armas, municiones y el historial de uso de la fuerza por agente"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes garantizarán que los integrantes de las instituciones de seguridad sean seleccionados mediante procedimientos adecuados que permitan establecer que poseen aptitudes éticas, psicológicas y físicas apropiadas para el ejercicio eficaz de sus funciones?",a:"Las instituciones de seguridad",d:["Los mandos de las instituciones de seguridad","El Consejo del Sistema Nacional de Seguridad Pública","Los superiores jerárquicos"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes garantizarán que los integrantes de las instituciones de seguridad reciban capacitación profesional, continua y completa, incluyendo el uso de la fuerza?",a:"Las instituciones de seguridad",d:["Los mandos de las instituciones de seguridad","El Consejo del Sistema Nacional de Seguridad Pública","Los superiores jerárquicos inmediatos"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿De que serán objeto las aptitudes para el ejercicio de las funciones de los integrantes de las instituciones de seguridad?",a:"De examen periódico",d:["De evaluación permanente","De revisión anual obligatoria","De certificación profesional"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Conforme a que las instituciones de seguridad garantizarán que sus integrantes sean seleccionados mediante procedimientos adecuados que permitan establecer que poseen aptitudes éticas, psicológicas y físicas apropiadas para el ejercicio eficaz de sus funciones y que reciban capacitación profesional, continua y completa, incluyendo el uso de la fuerza?",a:"A las disposiciones relativas de la ley General del sistema nacional de seguridad pública",d:["A los reglamentos internos de cada institución de seguridad","A las normas del Consejo del Sistema Nacional de Seguridad Pública","A la Ley Nacional sobre el Uso de la Fuerza y sus protocolos"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién tiene derecho a la protección de su vida e integridad física, al respeto a su dignidad como ser humano y a su autoridad por parte de sus superiores y de la ciudadanía?",a:"Todo agente",d:["Los integrantes de las instituciones de seguridad","Los agentes de las instituciones de seguridad pública","Los miembros de la Fuerza Armada permanente en tareas de seguridad pública"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿De quién es obligación, proporcionar a sus agentes la atención médica, psicológica y jurídica que, en su caso, requieran?",a:"De la institución de seguridad a la que pertenezcan",d:["De los superiores jerárquicos de los agentes","De las instituciones de seguridad en coordinación con el Estado","Del mando operativo del agente afectado"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En qué casos las familias de los agentes contarán con atención médica, psicológica y social?",a:"Cuando el agente pierda la vida, le sea imputado el uso excesivo de la fuerza o adquiera alguna discapacidad por el ejercicio de sus funciones",d:["Cuando el agente fallezca en acto de servicio o sufra una lesión grave por el ejercicio de sus funciones","Cuando el agente pierda la vida o quede con discapacidad permanente por acto de servicio","Cuando el agente sea lesionado gravemente, pierda la vida o sea sancionado por uso excesivo de la fuerza"]},
+  {c:4,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes contarán con atención médica, psicológica y social en aquellos casos en los que el agente pierda la vida, le sea imputado el uso excesivo de la fuerza o adquiera alguna discapacidad por el ejercicio de sus funciones?",a:"Las familias de los agentes",d:["Los agentes y sus familias","Los dependientes económicos de los agentes","Las familias de los agentes y el agente afectado"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En el uso de la fuerza para la detención de una persona que se debe hacer para determinar inmediatamente el nivel de fuerza que utilizará",a:"Evaluar la situación",d:["Comunicar al mando operativo el nivel de resistencia","Identificarse como autoridad ante la persona a detener","Solicitar apoyo del superior jerárquico inmediato"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En el uso de la fuerza para la detención de una persona, a quién se deberá comunicar de inmediato las razones por las cuales serán detenidas?",a:"A la persona o personas",d:["Al superior jerárquico inmediato","A la autoridad ante quien será puesta a disposición","Al mando operativo del operativo"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En el uso de la fuerza para la detención de una persona, a quién se deberá comunicar, ante qué autoridad será puesta a disposición y solicitar que la acompañen?",a:"Persona detenida",d:["A la persona o personas involucradas","Al superior jerárquico del agente","A los testigos presentes"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En el uso de la fuerza para la detención de una persona, que se deberá hacer con la persona detenida?",a:"Ponerla a disposición de forma inmediata ante la autoridad competente",d:["Registrarla e informar al superior jerárquico inmediato","Trasladarla al lugar que designe el mando operativo","Elaborar un informe de detención conforme a la ley en la materia"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, En el uso de la fuerza para la detención de una persona, ¿de acuerdo a que reglas, se atenderán los principios y procedimientos establecidos en la Ley nacional para el uso de fuerza?",a:"Evaluar la situación para determinar inmediatamente el nivel de fuerza que utilizará\nComunicar de inmediato a la persona o personas las razones por las cuales serán detenidas\nComunicar a la persona detenida ante qué autoridad será puesta a disposición y solicitar que la acompañen\nPoner a disposición de forma inmediata ante la autoridad competente a la persona detenida.",d:["Evaluar la situación, identificarse como autoridad, comunicar las razones de la detención y poner a disposición inmediata","Identificarse, comunicar las razones, solicitar acompañamiento y poner a disposición ante la autoridad ministerial","Aplicar los principios de legalidad, proporcionalidad y racionalidad en el uso de la fuerza para la detención"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes bajo su más estricta responsabilidad, velarán porque durante la custodia del detenido, se resguarde su integridad y se impidan actos de tortura, tratos o penas crueles, inhumanos o degradantes y desaparición forzada?",a:"Los agentes",d:["Los superiores jerárquicos de los agentes","Los mandos de las instituciones de seguridad","Las instituciones de seguridad"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes bajo su más estricta responsabilidad, durante la custodia del detenido, velarán por el cumplimiento de las disposiciones correspondientes de la Ley Nacional del Registro de Detenciones?",a:"Los agentes",d:["Las instituciones de seguridad","Los superiores jerárquicos inmediatos","El mando operativo"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cuándo para la detención de una persona sea necesario hacer uso de la fuerza, Que deberá procurar el agente?",a:"No ocasionar daño a la persona susceptible de detención y velar por el respeto a la vida e integridad física de ésta",d:["Utilizar el mínimo de fuerza necesaria para lograr la detención conforme a los principios de la ley","Aplicar los mecanismos de reacción de forma progresiva y diferenciada","Comunicar al mando operativo el nivel de resistencia presentado por el detenido"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, cuándo para la detención de una persona sea necesario hacer uso de la fuerza, ¿de qué forma, deberá el agente utilizar los distintos niveles del uso de la fuerza'",a:"De forma racional, subsidiaria y proporcional",d:["De forma progresiva, diferenciada y proporcional","De forma legal, proporcional y con absoluta necesidad","De forma gradual, escalonada y racional"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, cuándo para la detención de una persona sea necesario hacer uso de la fuerza, ¿A que no deberá exponer el agente, a la persona detenida?",a:"A tratos denigrantes, abuso de autoridad o tortura",d:["A lesiones que pongan en riesgo su vida o integridad física","A procedimientos que vulneren sus derechos humanos fundamentales","A condiciones que impidan su puesta a disposición inmediata"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En qué orden se debe garantizar la seguridad en una detención?",a:"Las personas no involucradas\nLos agentes\nEl sujeto de la detención",d:["Los agentes, las personas no involucradas y el sujeto de la detención","Las personas no involucradas, el sujeto de la detención y los agentes","El sujeto de la detención, los agentes y las personas no involucradas"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quienes deberán abstenerse de ejercer el uso de la fuerza en contra de una persona detenida bajo su custodia?",a:"Las instituciones de seguridad",d:["Los agentes bajo su más estricta responsabilidad","Los mandos de las instituciones de seguridad","Los superiores jerárquicos y los agentes"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Salvo que circunstancias, las instituciones de seguridad ejercerán el uso de la fuerza en contra de una persona detenida bajo su custodia?",a:"En circunstancias para el mantenimiento del orden y la seguridad o se ponga en riesgo la integridad de las personas",d:["Cuando exista resistencia activa o de alta peligrosidad por parte del detenido","Cuando el detenido represente una amenaza letal inminente para los agentes","Cuando el mando operativo lo autorice para garantizar la seguridad del operativo"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Podrán ser registradas en medios audiovisuales?",a:"Las detenciones",d:["Los operativos en los que se autorice el uso de la fuerza letal","Los reportes pormenorizados de uso de la fuerza","Los procedimientos de uso de la fuerza en cualquier operativo"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Estas serán accesibles por los medios que establezcan las disposiciones en materia de acceso a la información pública y protección de datos personales?",a:"Las detenciones registradas en medios audiovisuales",d:["Los reportes pormenorizados del uso de la fuerza","Los datos personales de los agentes que utilicen fuerza letal","Los informes públicos anuales de las instituciones de seguridad"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que se llevará a cabo de cada detención en términos de los establecido en la Ley Nacional del Registro de Detenciones?",a:"El registro e informe correspondiente de cada detención",d:["El reporte pormenorizado al superior jerárquico inmediato","El informe policial homologado de cada detenido","El registro audiovisual y el informe al mando operativo"]},
+  {c:5,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en una detención el personal militar no elabore el informe policial homologado, para cuando llegan las autoridades de la Fiscalía, ¿conforme a la Ley Nacional del Registro de detenciones que debe hacer el personal militar?",a:"Elaborar un informe por cada detenido",d:["Elaborar un reporte pormenorizado al superior jerárquico inmediato","Remitir el registro audiovisual de la detención a la Fiscalía","Elaborar el acta circunstanciada de cada detención practicada"]},
+  {c:6,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en manifestaciones o reuniones públicas pacíficas con objeto lícito, ¿De que por ningún motivo se podrá hacer uso?",a:"De las armas",d:["De la fuerza en cualquiera de sus niveles","De armas de fuego o armas menos letales","De mecanismos de reacción que impliquen contacto físico"]},
+  {c:6,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en manifestaciones o reuniones públicas pacíficas con objeto lícito, ¿Deberá asegurar la protección de los manifestantes y los derechos de terceros, así como garantizar la paz y el orden públicos?",a:"La actuación policial",d:["Las instituciones de seguridad pública","El mando operativo responsable del operativo","Los agentes con experiencia y capacitación específica"]},
+  {c:6,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿en qué casos la actuación policial deberá asegurar la protección de los manifestantes y los derechos de terceros, así como garantizar la paz y el orden públicos?",a:"En manifestaciones o reuniones públicas pacíficas con objeto lícito",d:["En cualquier operativo donde participen grupos de personas","En asambleas, manifestaciones o reuniones que puedan tornarse violentas","En todo tipo de manifestaciones o reuniones públicas con o sin objeto lícito"]},
+  {c:6,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en manifestaciones o reuniones públicas pacíficas con objeto lícito, ¿Por quien deberá hacerse , la intervención de las fuerzas de seguridad pública?",a:"Por personas con experiencia y capacitación específicas para dichas situaciones",d:["Por el mando operativo designado por el Consejo del Sistema Nacional de Seguridad Pública","Por agentes certificados en control de multitudes y negociación","Por los mandos de las instituciones de seguridad con experiencia en operativos de orden público"]},
+  {c:6,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en manifestaciones o reuniones públicas pacíficas con objeto lícito, ¿Bajo que protocolos debe hacerse la intervención de las fuerzas de seguridad pública por personas con experiencia y capacitación específicas para dichas situaciones?",a:"Bajo protocolos de actuación emitidos por el Consejo del Sistema Nacional de Seguridad Pública",d:["Bajo los protocolos de actuación emitidos por las instituciones de seguridad","Bajo los manuales de técnicas para el uso de la fuerza de cada institución","Bajo los lineamientos de la Ley Nacional sobre el Uso de la Fuerza y sus reglamentos"]},
+  {c:6,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, cuándo las manifestaciones o reuniones públicas se tornen violentas, ¿Quienes deberán actuar de acuerdo a los distintos niveles de fuerza establecidos en esta Ley",a:"Las policías",d:["Las instituciones de seguridad pública","Los agentes capacitados para dichas situaciones","Las fuerzas de seguridad pública con experiencia en control de multitudes"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Cuándo tendrán los agentes derecho a responder a una agresión usando fuerza letal?",a:"Cuando esté en peligro inminente su integridad física con riesgo de muerte",d:["Cuando la agresión sea real, actual o inminente y sin derecho","Cuando se enfrente una resistencia de alta peligrosidad con armas letales","Cuando el mando operativo autorice el uso de la fuerza letal en el operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Qué circunstancias se deberán tomar en cuenta para calificar el derecho de un agente a responder a una agresión usando fuerza letal cuando estuvo en peligro inminente su integridad física con riesgo de muerte?",a:"Las circunstancias de modo, tiempo y lugar del operativo, así como la situación del agresor y su capacidad de resistencia",d:["El nivel de resistencia del agresor y el tipo de armas empleadas en el operativo","Los principios de racionalidad, proporcionalidad y absoluta necesidad aplicados al caso","El nivel de fuerza utilizado y los daños causados al agresor durante el operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que se deberá tomar siempre en consideración para garantizar la protección a los derechos humanos de todos los potenciales involucrados, en el uso de la fuerza y la planeación de operativos?",a:"La salvaguarda de los objetivos y principios que establece la ley nacional para el uso de la fuerza",d:["Los principios de legalidad, proporcionalidad y absoluta necesidad del uso de la fuerza","Los protocolos de actuación emitidos por el Consejo del Sistema Nacional de Seguridad Pública","Los derechos humanos de todos los potenciales involucrados en el operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el uso de la fuerza y la planeación de operativos, ¿Quién deberá realizar reuniones para la coordinación con las diferentes autoridades participantes y los agentes que participarán en el operativo, con el objetivo de plantear las estrategias adecuadas y la toma de decisiones para definir el cumplimiento de los objetivos?",a:"El mando",d:["El mando operativo","El agente o agentes al mando del operativo","El superior jerárquico inmediato"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Estos planes deberán contemplar la forma para controlar la eventual resistencia, considerando la capacidad de respuesta del objetivo?",a:"Los planes operativos y logísticos",d:["Los planes operativos","El mando operativo durante la realización del operativo","Los agentes al mando del operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Estos planes deberán contemplar las características físicas del lugar, las entradas y salidas para poder considerar la retirada en caso de que el uso de la fuerza resulte inadecuado y la vida de los agentes corra peligro?",a:"Los planes operativos y logísticos",d:["Los planes operativos","El mando operativo en coordinación con el mando superior","Las estrategias del operativo definidas en la coordinación previa"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Estos planes deberán contemplar evitar la huida de la o las personas en caso de que se trate de una detención?",a:"Los planes operativos y logísticos",d:["Los planes operativos","Los planes de desplazamiento de los agentes en la zona del operativo","Las estrategias del operativo para el cumplimiento de los objetivos"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Estos planes deberán establecer acciones para repeler, contrarrestar y neutralizar cualquier tipo de resistencia?",a:"Planes operativos",d:["Los planes operativos y logísticos","El mando del operativo en coordinación con el mando superior","Las estrategias y programas del operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el uso de la fuerza y la planeación de operativos, ¿Que se debe contemplar en el desarrollo del operativo?",a:"El uso progresivo y diferenciado de la fuerza, procurando generar el menor daño posible",d:["El uso gradual y escalonado de los mecanismos de reacción previstos en el artículo 9","El empleo diferenciado de los niveles del uso de la fuerza del artículo 11","Los principios de proporcionalidad, racionalidad y absoluta necesidad en el uso de la fuerza"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el uso de la fuerza y la planeación de operativos, ¿qué se debe realizar antes del operativo?",a:"Pasar revista de agentes, equipo, armamento, cartuchos y vehículos, misma que deberá constar por escrito",d:["Realizar reuniones de coordinación con todas las autoridades participantes en el operativo","Evaluar los factores de riesgo y determinar las rutas para poner a salvo a personas ajenas","Determinar el agente o agentes al mando y los responsables del cumplimiento del operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el uso de la fuerza y la planeación de operativos, ¿Quién se deberá asegurar de mantener una constante comunicación con sus superiores para la toma de decisiones durante la realización del operativo, incluida la posible negociación con las personas que ejercen la resistencia?",a:"El mando operativo",d:["El mando","El agente o agentes al mando del operativo","El agente que funja como negociador"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el uso de la fuerza y la planeación de operativos, ¿Que acción es legal en el desarrollo del operativo, desde el inicio hasta la conclusión del mismo?",a:"Grabar",d:["Filmar únicamente con dispositivos tecnológicos autorizados desde la planeación","Registrar audiovisualmente si fue autorizado desde la planeación el uso de la fuerza letal","Documentar el operativo conforme a los protocolos de las instituciones de seguridad"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el caso de los planes, estrategias y programas para actuar frente a asambleas, manifestaciones o reuniones que se tornen violentas o que atenten contra el orden público, ¿Que se deberá considerar para llevar a cabo negociaciones y procedimientos de disuasión y persuasión para que los manifestantes abandonen las conductas agresivas, debiendo buscar a los líderes para entablar el diálogo entre éstos y las autoridades?",a:"La presencia de agentes capacitados",d:["La presencia del mando operativo en comunicación con el mando superior","El despliegue de agentes con experiencia en control de multitudes","La actuación policial bajo protocolos del Consejo del Sistema Nacional de Seguridad Pública"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el caso de los planes, estrategias y programas para actuar frente a asambleas, manifestaciones o reuniones que se tornen violentas o que atenten contra el orden público, ¿Quién deberá permanecer en comunicación directa y en coordinación con el mando operativo?",a:"El agente que funja como negociador",d:["El mando superior","El mando del operativo","El agente al mando del operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el caso de los planes, estrategias y programas para actuar frente a asambleas, manifestaciones o reuniones que se tornen violentas o que atenten contra el orden público, ¿Quién tendrá contacto directo con el mando superior?",a:"El mando operativo",d:["El agente que funja como negociador","El mando","El agente al mando del operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el caso de los planes, estrategias y programas para actuar frente a asambleas, manifestaciones o reuniones que se tornen violentas o que atenten contra el orden público, ¿Con quién deberá permanecer en comunicación directa y en coordinación, el agente que funja como negociador?",a:"El mando operativo",d:["El mando superior","El mando","El agente al mando del operativo"]},
+  {c:7,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el caso de los planes, estrategias y programas para actuar frente a asambleas, manifestaciones o reuniones que se tornen violentas o que atenten contra el orden público, ¿Con quién tendrá contacto directo el mando operativo",a:"El mando superior",d:["El mando","El agente que funja como negociador","El agente al mando del operativo"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que deberán realizar los miembros de las instituciones de seguridad siempre que utilicen la fuerza en cumplimiento de sus funciones?",a:"Un reporte pormenorizado",d:["Un informe policial homologado","Un registro e informe conforme a la ley en la materia","Un acta circunstanciada de los hechos"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿A quién deberán realizar un reporte pormenorizado, los miembros de las instituciones de seguridad, siempre que utilicen la fuerza en cumplimiento de sus funciones?",a:"Al superior jerárquico inmediato",d:["Al mando operativo del operativo realizado","Al mando de la institución de seguridad","Al agente al mando del operativo"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes serán responsables cuando deban tener o tengan conocimiento de que los agentes bajo su mando hayan empleado ilícitamente la fuerza, los instrumentos o armas de fuego a su cargo y no lo impidan o no lo denuncien ante las autoridades correspondientes?",a:"Los superiores jerárquicos",d:["Los mandos de las instituciones de seguridad","El mando operativo responsable del operativo","Las instituciones de seguridad"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quiénes establecerán un programa de evaluaciones periódicas de acuerdo con estándares de eficiencia sobre el uso de la fuerza?",a:"Las instituciones de seguridad",d:["Los mandos de las instituciones de seguridad","El Consejo del Sistema Nacional de Seguridad Pública","Los superiores jerárquicos de los agentes"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quienes deberán presentar informes públicos anuales que permitan conocer el desarrollo de las actividades que involucren el uso de la fuerza?",a:"Las instituciones de seguridad",d:["Los mandos de las instituciones de seguridad","El Consejo del Sistema Nacional de Seguridad Pública","Las instituciones de seguridad pública en coordinación con el Estado"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Con que finalidad se podrán utilizar dispositivos tecnológicos, en aquellos operativos en los que se requiera y autorice desde la planeación el uso de la fuerza letal?",a:"Para registrar audiovisualmente el desarrollo del operativo con fines de verificación",d:["Para vigilar la seguridad de los agentes y de las personas alrededor","Para documentar el uso de la fuerza y elaborar el reporte pormenorizado","Para garantizar la rendición de cuentas y vigilancia del uso de la fuerza"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que se podrá utilizar en aquellos operativos en los que se requiera y autorice desde la planeación el uso de la fuerza letal con el fin de registrar audiovisualmente el desarrollo del operativo con fines de verificación?",a:"Dispositivos tecnológicos",d:["Mecanismos tecnológicos de vigilancia y registro","Sistemas de grabación autorizados por los protocolos institucionales","Equipos de registro audiovisual de los vehículos del operativo"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que, cuando se utilicen en el ejercicio del uso de la fuerza contarán con mecanismos tecnológicos para vigilar la seguridad de los agentes y de las personas alrededor?",a:"Los vehículos",d:["Los dispositivos tecnológicos del operativo","El equipo de protección de los agentes","Los instrumentos del uso de la fuerza asignados a los agentes"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Qué será accesible para investigaciones y procedimientos judiciales, en términos de la legislación en la materia?",a:"El material audiovisual",d:["Los reportes pormenorizados del uso de la fuerza","Los informes públicos anuales de las instituciones de seguridad","Los datos personales de los agentes que hayan utilizado fuerza letal"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, para cumplir con la obligación, de que el material audiovisual sea accesible para investigaciones y procedimientos judiciales ¿Que deberán procurar las instituciones de seguridad pública?",a:"Adquirir la tecnología correspondiente, en medida de las disponibilidades presupuestarias",d:["Instalar mecanismos tecnológicos en los vehículos utilizados en el uso de la fuerza","Utilizar dispositivos tecnológicos en todos los operativos que requieran uso de fuerza letal","Garantizar el acceso al material audiovisual conforme a las disposiciones de transparencia"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, cuando los miembros de las instituciones de seguridad realicen un reporte pormenorizado, por haber utilizado la fuerza en cumplimiento de sus funciones, ¿A los expedientes de quienes se le integrará una copia de este?",a:"Al agente al mando del operativo y en lo conducente de cada uno de los participantes",d:["Al agente que utilizó la fuerza y al superior jerárquico inmediato","Al mando operativo y a cada uno de los agentes participantes","Al superior jerárquico inmediato y al mando de la institución de seguridad"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, en el caso de los planes, estrategias y programas para actuar frente a asambleas, manifestaciones o reuniones que se tornen violentas o que atenten contra el orden público, ¿Con quién tendrá contacto directo el mando operativo",a:"El mando superior",d:["El mando","El agente que funja como negociador","El agente al mando del operativo"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Que presentaran las instituciones de seguridad para conocer el desarrollo de las actividades que involucren el uso de la fuerza?",a:"Informes públicos anuales",d:["Reportes pormenorizados de cada operativo realizado","Programas de evaluaciones periódicas de eficiencia","Registros audiovisuales del desarrollo de las actividades"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, para cumplir con la obligación de que el material audiovisual será accesible para investigaciones y procedimientos judiciales, en términos de la legislación en la materia, ¿Quiénes procurarán, en medida de las disponibilidades presupuestarias, adquirir la tecnología correspondiente?",a:"Las instituciones de seguridad pública",d:["Las instituciones de seguridad","Los mandos de las instituciones de seguridad","El Consejo del Sistema Nacional de Seguridad Pública"]},
+  {c:8,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, para cumplir con la obligación de que el material audiovisual será accesible para investigaciones y procedimientos judiciales, en términos de la legislación en la materia ¿Qué procurarán adquirir, en medida de las disponibilidades presupuestarias, las instituciones de seguridad pública?",a:"La tecnología correspondiente",d:["Los dispositivos tecnológicos para el registro audiovisual de operativos","Los mecanismos tecnológicos para vigilar la seguridad de los agentes","Los sistemas de grabación para los vehículos del uso de la fuerza"]},
+  {c:9,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En qué se deberá considerar el uso diferenciado, escalonado y gradual de la fuerza, tanto de armas letales como menos letales, siempre con el objetivo de evitar daño a la integridad física de las personas?",a:"La capacitación",d:["Los programas de capacitación","El entrenamiento para el uso de las armas permitidas","Los cursos de evaluación sobre el uso de la fuerza"]},
+  {c:9,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿En dónde se deberán establecer cursos de evaluación sobre el uso de la fuerza?",a:"Dentro de los programas de capacitación",d:["En el manual correspondiente de cada institución de seguridad","En los protocolos de actuación emitidos por las instituciones de seguridad","En el entrenamiento para el uso de las armas permitidas"]},
+  {c:10,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quienes deberán verificar que el empleo de la fuerza ejercida por sus subordinados se efectúe conforme a lo establecido en la presente Ley y demás ordenamientos aplicables?",a:"Los mandos de las instituciones de seguridad, así como de la Fuerza Armada permanente, cuando actúen en tareas de seguridad pública",d:["Los superiores jerárquicos de los agentes que ejerzan el uso de la fuerza","Las instituciones de seguridad a través de sus programas de evaluación periódica","Los mandos operativos responsables de cada operativo realizado"]},
+  {c:10,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Estas deberán ser sancionadas en términos de las disposiciones legales civiles, penales o administrativas correspondiente?",a:"Las infracciones a la ley nacional para le uso de la fuerza, derivadas de uso indebido de la fuerza",d:["Las conductas de los agentes que vulneren los principios del uso de la fuerza","El uso excesivo de la fuerza por parte de los agentes en cualquier operativo","Los actos de tortura, tratos crueles o degradantes cometidos durante la custodia del detenido"]},
+  {c:10,q:"De conformidad con la Ley Nacional sobre el Uso de la Fuerza, ¿Quién al tener conocimiento que se usó indebidamente la fuerza, deberá denunciar el hecho ante la autoridad competente?",a:"Cualquier integrante de las instituciones de seguridad, así como de la Fuerza Armada permanente cuando actúe en tareas de seguridad pública",d:["Los superiores jerárquicos que tengan conocimiento del uso indebido de la fuerza","Los mandos de las instituciones de seguridad al tener conocimiento de las infracciones","Los agentes testigos del uso indebido de la fuerza en cumplimiento de sus funciones"]},
+];
+</script>
+<script>
+const CAPS=["Cap. I","Cap. II","Cap. III","Cap. IV","Cap. V","Cap. VI","Cap. VII","Cap. VIII","Cap. IX","Cap. X","Cap. XI"];
+const KEY='lnuf_mc_v2';
+let scores={},streak=0,session=[],idx=0,sOk=0,sFail=0;
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify({scores,streak}));}catch(e){}}
+function loadData(){
+  try{const d=JSON.parse(localStorage.getItem(KEY)||'{}');scores=d.scores||{};streak=d.streak||0;}catch(e){}
+  updateStats();restart();
+}
+function sc(id){return scores[id]||{ok:0,fail:0};}
+function priority(id){const s=sc(id);const t=s.ok+s.fail;if(!t)return 1000;const r=s.ok/t;return r<0.5?800:r<0.8?400:50;}
+
+function restart(){
+  const f=document.getElementById('ch-sel').value;
+  const shuffle=document.getElementById('shuffle-tog').checked;
+  let pool=QQ.map((q,i)=>({...q,id:i}));
+  if(f!=='all')pool=pool.filter(q=>q.c===parseInt(f));
+  if(shuffle){
+    pool.sort((a,b)=>{const pa=priority(a.id),pb=priority(b.id);if(pa!==pb)return pb-pa;return Math.random()-0.5;});
+  }
+  session=pool;idx=0;sOk=0;sFail=0;
+  updateStats();render();
+}
+
+function getOpts(q){
+  return [...q.d.slice(0,3),q.a].sort(()=>Math.random()-0.5);
+}
+function fmt(t){return(t||'').replace(/\n/g,'<br>');}
+function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');}
+
+function render(){
+  const el=document.getElementById('card-area');
+  if(!session.length){el.innerHTML='<div class="empty">No hay preguntas para este filtro.</div>';return;}
+  const tot=session.length,done=Math.min(idx,tot);
+  document.getElementById('pfill').style.width=Math.round(done/tot*100)+'%';
+  document.getElementById('ptxt').textContent=done+' / '+tot;
+  if(idx>=tot){
+    const pct=tot>0?Math.round(sOk/tot*100):0;
+    el.innerHTML=`<div class="done"><div class="done-icon">${pct>=80?'🎖':pct>=60?'📋':'📖'}</div><h3>Sesión completada</h3><div class="score-big">${pct}%</div><div class="score-sub">${sOk} correctas · ${sFail} incorrectas de ${tot} preguntas</div><button class="next-btn" onclick="restart()">Reiniciar sesión</button></div>`;
+    return;
+  }
+  const q=session[idx];
+  const s=sc(q.id);const tot_a=s.ok+s.fail;
+  const pct=tot_a>0?Math.round(s.ok/tot_a*100):null;
+  const opts=getOpts(q);
+  let meta=`<span class="tag">${CAPS[q.c]}</span><span class="tag">${idx+1} de ${tot}</span>`;
+  if(pct!==null)meta+=`<span class="tag">Historial: ${pct}%</span>`;
+  let html=`<div class="qcard"><div class="qmeta">${meta}</div><div class="qtxt">${q.q}</div><div class="mc-hint">Selecciona la respuesta correcta:</div><div class="opts" id="opts">`;
+  opts.forEach((o,i)=>{html+=`<button class="opt" id="o${i}" onclick="answer(this,'${esc(o)}','${esc(q.a)}')">${fmt(o)}</button>`;});
+  html+=`</div><div class="feedback" id="fb"></div></div>`;
+  el.innerHTML=html;
+}
+
+function answer(btn,chosen,correct){
+  const cn=chosen.replace(/\\n/g,'\n'),cr=correct.replace(/\\n/g,'\n');
+  const ok=cn===cr;
+  const q=session[idx];const s=sc(q.id);
+  if(ok){s.ok=(s.ok||0)+1;streak++;sOk++;}else{s.fail=(s.fail||0)+1;streak=0;sFail++;}
+  scores[q.id]=s;save();updateStats();
+  document.querySelectorAll('.opt').forEach(b=>{
+    b.disabled=true;
+    const bt=b.innerHTML.replace(/<br>/g,'\n').trim();
+    if(bt===cr.trim())b.classList.add('correct');
+    else if(b===btn&&!ok)b.classList.add('wrong');
+  });
+  const fb=document.getElementById('fb');
+  if(ok){fb.className='feedback show ok-fb';fb.textContent='✓ Correcto';}
+  else{fb.className='feedback show fail-fb';fb.innerHTML='✗ Incorrecto. La respuesta correcta es: <strong>'+fmt(cr)+'</strong>';}
+  const nb=document.createElement('button');
+  nb.className='next-btn';
+  nb.textContent=idx+1<session.length?'Siguiente →':'Ver resultados →';
+  nb.onclick=()=>{idx++;render();};
+  fb.after(nb);
+}
+
+function updateStats(){
+  document.getElementById('s-tot').textContent=QQ.length;
+  document.getElementById('s-ok').textContent=sOk;
+  document.getElementById('s-fail').textContent=sFail;
+  document.getElementById('s-str').textContent=streak;
+}
+
+function setView(v){
+  document.getElementById('vq').style.display=v==='q'?'block':'none';
+  document.getElementById('vd').style.display=v==='d'?'block':'none';
+  document.getElementById('btn-q').classList.toggle('on',v==='q');
+  document.getElementById('btn-d').classList.toggle('on',v==='d');
+  if(v==='d')renderDB();
+}
+
+function renderDB(){
+  let html='';
+  CAPS.forEach((name,ci)=>{
+    const qs=QQ.map((_,i)=>i).filter(i=>QQ[i].c===ci);
+    let ok=0;
+    qs.forEach(i=>{const s=sc(i);const t=s.ok+s.fail;if(t&&s.ok/t>=0.8)ok++;});
+    const pct=qs.length?Math.round(ok/qs.length*100):0;
+    html+=`<div class="db-row"><div class="db-name">${name}</div><div class="db-bar"><div class="db-fill" style="width:${pct}%"></div></div><div class="db-pct">${pct}%</div><div class="db-cnt">${ok}/${qs.length}</div></div>`;
+  });
+  document.getElementById('db-content').innerHTML=html;
+}
+
+function resetAll(){
+  if(!confirm('¿Borrar todo el progreso? Esta acción no se puede deshacer.'))return;
+  scores={};streak=0;sOk=0;sFail=0;save();updateStats();renderDB();
+}
+loadData();
+</script>
+</body>
+</html>
